@@ -1,6 +1,58 @@
 package com.neuronrobotics.bowlerstudio.threed;
 
-import java.awt.image.BufferedImage;
+import com.neuronrobotics.bowlerstudio.BowlerStudioController;
+import com.neuronrobotics.bowlerstudio.BowlerStudioModularFrame;
+import com.neuronrobotics.bowlerstudio.assets.AssetFactory;
+import com.neuronrobotics.bowlerstudio.creature.EngineeringUnitsSliderWidget;
+import com.neuronrobotics.bowlerstudio.creature.IOnEngineeringUnitsChange;
+import com.neuronrobotics.bowlerstudio.physics.TransformFactory;
+import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine;
+import com.neuronrobotics.bowlerstudio.utils.SVGFactory;
+import com.neuronrobotics.imageprovider.AbstractImageProvider;
+import com.neuronrobotics.imageprovider.IVirtualCameraFactory;
+import com.neuronrobotics.imageprovider.VirtualCameraFactory;
+import com.neuronrobotics.nrconsole.util.FileSelectionFactory;
+import com.neuronrobotics.sdk.addons.kinematics.math.RotationNR;
+import com.neuronrobotics.sdk.addons.kinematics.math.TransformNR;
+import com.neuronrobotics.sdk.common.Log;
+import eu.mihosoft.vrl.v3d.CSG;
+import eu.mihosoft.vrl.v3d.Cylinder;
+import eu.mihosoft.vrl.v3d.FileUtil;
+import eu.mihosoft.vrl.v3d.parametrics.CSGDatabase;
+import eu.mihosoft.vrl.v3d.parametrics.IParameterChanged;
+import eu.mihosoft.vrl.v3d.parametrics.LengthParameter;
+import eu.mihosoft.vrl.v3d.parametrics.Parameter;
+import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.collections.ObservableList;
+import javafx.embed.swing.JFXPanel;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.scene.*;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.*;
+import javafx.scene.shape.MeshView;
+import javafx.scene.transform.Affine;
+import javafx.scene.transform.Rotate;
+import javafx.scene.transform.Scale;
+import javafx.scene.transform.Transform;
+import org.reactfx.util.FxTimer;
+
+import javax.imageio.ImageIO;
+import javax.swing.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.*;
 
 /*
  * Copyright (c) 2011, 2013 Oracle and/or its affiliates.
@@ -33,131 +85,7 @@ import java.awt.image.BufferedImage;
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import javax.imageio.ImageIO;
-import javax.swing.JFrame;
-
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.python.modules.thread.thread;
-import org.reactfx.util.FxTimer;
-
-import com.neuronrobotics.bowlerstudio.BowlerStudio;
-import com.neuronrobotics.bowlerstudio.BowlerStudioController;
-import com.neuronrobotics.bowlerstudio.BowlerStudioModularFrame;
-import com.neuronrobotics.bowlerstudio.assets.AssetFactory;
-import com.neuronrobotics.bowlerstudio.creature.EngineeringUnitsSliderWidget;
-import com.neuronrobotics.bowlerstudio.creature.IOnEngineeringUnitsChange;
-import com.neuronrobotics.bowlerstudio.physics.TransformFactory;
-import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine;
-import com.neuronrobotics.bowlerstudio.utils.SVGFactory;
-import com.neuronrobotics.imageprovider.AbstractImageProvider;
-import com.neuronrobotics.imageprovider.IVirtualCameraFactory;
-import com.neuronrobotics.imageprovider.VirtualCameraFactory;
-import com.neuronrobotics.nrconsole.util.FileSelectionFactory;
-import com.neuronrobotics.sdk.addons.kinematics.AbstractKinematicsNR;
-import com.neuronrobotics.sdk.addons.kinematics.DHLink;
-import com.neuronrobotics.sdk.addons.kinematics.DHParameterKinematics;
-import com.neuronrobotics.sdk.addons.kinematics.ITaskSpaceUpdateListenerNR;
-import com.neuronrobotics.sdk.addons.kinematics.MobileBase;
-import com.neuronrobotics.sdk.addons.kinematics.math.RotationNR;
-import com.neuronrobotics.sdk.addons.kinematics.math.TransformNR;
-import com.neuronrobotics.sdk.common.BowlerAbstractConnection;
-import com.neuronrobotics.sdk.common.BowlerAbstractDevice;
-import com.neuronrobotics.sdk.common.IConnectionEventListener;
-import com.neuronrobotics.sdk.common.IDeviceConnectionEventListener;
-import com.neuronrobotics.sdk.common.Log;
-import com.neuronrobotics.sdk.dyio.DyIO;
-import com.neuronrobotics.sdk.dyio.dypid.DyPIDConfiguration;
-import com.neuronrobotics.sdk.dyio.peripherals.DigitalInputChannel;
-import com.neuronrobotics.sdk.dyio.peripherals.IDigitalInputListener;
-import com.neuronrobotics.sdk.pid.PIDConfiguration;
-import com.neuronrobotics.sdk.util.ThreadUtil;
-import com.sun.javafx.geom.transform.Affine3D;
-import com.sun.javafx.geom.transform.BaseTransform;
-
-import eu.mihosoft.vrl.v3d.CSG;
-import eu.mihosoft.vrl.v3d.Cube;
-import eu.mihosoft.vrl.v3d.Cylinder;
-import eu.mihosoft.vrl.v3d.FileUtil;
-import eu.mihosoft.vrl.v3d.parametrics.CSGDatabase;
-import eu.mihosoft.vrl.v3d.parametrics.IParameterChanged;
-import eu.mihosoft.vrl.v3d.parametrics.IParametric;
-import eu.mihosoft.vrl.v3d.parametrics.LengthParameter;
-import eu.mihosoft.vrl.v3d.parametrics.Parameter;
-import eu.mihosoft.vrl.v3d.parametrics.StringParameter;
-import javafx.application.Application;
-import javafx.application.Platform;
-import static javafx.application.Application.launch;
-import javafx.scene.Group;
-import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.SubScene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.CustomMenuItem;
-import javafx.scene.control.Label;
-import javafx.scene.control.Labeled;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.Stop;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
-import javafx.stage.FileChooser.ExtensionFilter;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.scene.PerspectiveCamera;
-import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.Box;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.MeshView;
-import javafx.scene.shape.Sphere;
-import javafx.scene.shape.TriangleMesh;
-import javafx.scene.transform.Affine;
-import javafx.scene.transform.NonInvertibleTransformException;
-import javafx.scene.transform.Rotate;
-import javafx.scene.transform.Scale;
-import javafx.scene.transform.Transform;
-import javafx.scene.transform.Translate;
-import javafx.animation.Timeline;
-import javafx.beans.property.DoubleProperty;
-import javafx.collections.ObservableList;
-import javafx.embed.swing.JFXPanel;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.geometry.Bounds;
-
-import static javafx.scene.input.KeyCode.*;
-
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.WritableImage;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
 //import javafx.util.Duration;
-import javafx.scene.Node;
 
 // TODO: Auto-generated Javadoc
 /**
@@ -425,8 +353,7 @@ public class BowlerStudio3dEngine extends JFXPanel {
 	/**
 	 * Removes the object.
 	 *
-	 * @param previous
-	 *            the previous
+	 * @param previousCsg the previous
 	 */
 	public void removeObject(CSG previousCsg) {
 		// System.out.println(" Removing a CSG from file: "+previousCsg+" from
@@ -486,8 +413,7 @@ public class BowlerStudio3dEngine extends JFXPanel {
 	/**
 	 * Adds the object.
 	 *
-	 * @param current
-	 *            the current
+	 * @param currentCsg the current
 	 * @return the mesh view
 	 */
 	public MeshView addObject(CSG currentCsg, File source) {
@@ -989,10 +915,7 @@ public class BowlerStudio3dEngine extends JFXPanel {
 	/**
 	 * Handle mouse.
 	 *
-	 * @param scene
-	 *            the scene
-	 * @param root
-	 *            the root
+	 * @param scene the scene
 	 */
 	private void handleMouse(SubScene scene) {
 
